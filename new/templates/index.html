@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>live Tracking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { height: 100vh; width: 100%; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-rotatedmarker@0.2.0/leaflet.rotatedMarker.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+    <script>
+        const map = L.map('map').setView([31.1471, 75.3412], 9); 
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        const vehicleMarkers = {};
+        const vehicleIcon = L.icon({
+            iconUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAByUlEQVR4nO2ZT0rDQBSHfwi2UMmb1i5EvYmo6EJwqSCeQlz1D3oAi/cQD6DbulcQWvKmtlSXeoK60I2VTFpa6KQkNTYTOh+8TSfk976ZZBJSwGKxWCyWWOhm4bjnEPwIkp8Qsm9EkeqlA8G3IPcUkJlgh9XGJkg2E29ahKo3CPdYvxLpkeiPrdQ10F8aeajLyYDGZpYZIvgp8Yb+VK0jX4S4NzHo8BZMYa25AsF7IHmnF+FX4HkZ2kFTIb4MWJmTdIl4CHmvWZWbFIrwvqbnTvpEim1ncvfinl6kILdhKvnWjn7yE98+Yyok3YAVkYsk4gQ82b1NIOyxsyCGTU1B10OgSJiwMMf+h4iHFRnHipguUojxLUCEyI/0ZI8iYkrBikizCospIjPpFym2N0DcSLlIN2u0hAgrQvJsNM5fEFxC7mVdleCy/1ucjXH0DBB/RAwpTW4AXIlZpBQpg+S7d0AtUog3Q7r7J06RXNQMvhrsRFwLvTImiZB89yWm/dUQ+GGMy5qxqn9ifgh/woQyQO4BBP8MbsSKmiF/lqoQ/K3GSB4an6EgeTHlkqgiDmgOGYp8axfEdfV1z6+6erWOk/wcMiwWiwVJ8gug2S3hHRw4sgAAAABJRU5ErkJggg==",
+            iconSize: [28, 28],
+            iconAnchor: [14, 14]
+        });
+
+        const socket = io.connect('http://' + document.domain + ':' + location.port);
+
+        socket.on('connect', () => {
+            console.log('Successfully connected to the user server!');
+        });
+
+        socket.on('live_location_update', (data) => {
+            const vehicles = data.vehicles;
+            console.log(`Received update for ${vehicles.length} vehicles.`);
+
+            for (const vehicle of vehicles) {
+                const vehicleId = vehicle.vehicle_id;
+                const lat = vehicle.latitude;
+                const lon = vehicle.longitude;
+                const heading = vehicle.heading;
+                const popupContent = `<b>${vehicleId}</b><br>
+                                      Status: ${vehicle.status}<br>
+                                      Speed: ${vehicle.speed_kmh} km/h<br>
+                                      GPS: ${vehicle.gps_status}`;
+
+                if (vehicleMarkers[vehicleId]) {
+                    const marker = vehicleMarkers[vehicleId];
+                    marker.setLatLng([lat, lon]);
+                    marker.setRotationAngle(heading);
+                    marker.getPopup().setContent(popupContent);
+                } else {
+                    const newMarker = L.marker([lat, lon], {
+                        icon: vehicleIcon,
+                        rotationAngle: heading
+                    }).addTo(map);
+
+                    newMarker.bindPopup(popupContent);
+                    vehicleMarkers[vehicleId] = newMarker;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+
+
+
+
