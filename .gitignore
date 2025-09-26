@@ -1,0 +1,5 @@
+.env
+# route.txt
+__pycache__/
+old/
+
